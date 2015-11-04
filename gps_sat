@@ -1,0 +1,43 @@
+#!/usr/bin/perl
+
+
+use strict;
+use warnings;
+use JSON;
+
+my $gps;
+my $t=0;
+my %ss;
+@ss{(1 .. 32,65..88)} = undef;
+#$ss{$_} = undef foreach (keys %ss);
+my %used = %ss;
+open(D, "timeout -k 10 8 gpspipe -n6 -w|grep SKY|") or die;
+while (my $line = <D>){
+	$gps=decode_json($line);
+	if ($gps->{class} eq "SKY"){
+		my $sat = $gps->{satellites};
+		foreach my $satentry ( @$sat ) {
+			$used{$satentry->{PRN}} = $satentry->{used} ;
+			#print $satentry->{PRN}." =$satentry->{ss} ".$satentry->{used}."\n";
+			$ss{$satentry->{PRN}} = $satentry->{ss} ;
+		}
+	}
+}
+foreach (keys %used){
+	$t+=1 if (defined($used{$_}) and $used{$_} > 0);
+}
+if ( defined($ARGV[0]) and $ARGV[0] eq "config" ) {
+	print "graph_title GPS satellites\n";
+	print "graph_vlabel S/N\n";
+	print "graph_category Sensors\n";
+	print "used.label used ($t)\n";
+	foreach (sort {(defined($ss{$b})?$ss{$b}:-1)<=>(defined($ss{$a})?$ss{$a}:-1)} keys %ss){
+		print "sat".$_. ".label sat".$_.((defined($used{$_}) and ($used{$_}>0))?" (used)":"")."\n";
+	}	
+} else {
+	print "used.value ".$t."\n";
+	foreach (sort {(defined($ss{$b})?$ss{$b}:-1)<=>(defined($ss{$a})?$ss{$a}:-1)} keys %ss){
+		$ss{$_} = 0-$ss{$_} if (defined($ss{$_}) and defined($used{$_}) and ($used{$_}<=0));
+		print "sat".$_. ".value ".(defined($ss{$_})?$ss{$_}:"nan")."\n";
+	}	
+}

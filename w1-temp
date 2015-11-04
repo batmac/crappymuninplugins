@@ -1,0 +1,32 @@
+#!/bin/bash
+# A basic munin-node script to monitor the Raspberry Pi temperature
+# find /sys/bus/w1/devices/ -name "28-*" -exec cat {}/w1_slave \; | grep "t=" | awk -F "t=" '{print $2/1000}'
+
+found=`find /sys/bus/w1/devices/ -name "28-*"`
+
+if [ "$1" == "autoconf" ]; then
+     if [ "x$found" != "x" ]; then
+         echo "yes"
+     else
+         echo "no"
+         exit 1
+     fi
+
+elif [ "$1" == "config" ]; then
+     echo "graph_title w1 Temperature"
+     echo "graph_vlabel Temperature in Celsius"
+     echo "graph_category Sensors"
+     for i in $found;do
+         b=`basename $i`
+         echo "$b.warning 65"
+         echo "$b.critical 80"
+         echo "$b.label $b"
+     done
+else
+     for i in $found;do
+        b=`basename $i`
+	echo -n "$b.value "
+	cat $i/w1_slave| grep "t=" | awk -F "t=" '{print $2/1000}'
+done
+	
+fi

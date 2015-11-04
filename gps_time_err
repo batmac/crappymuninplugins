@@ -1,0 +1,28 @@
+#!/usr/bin/perl
+
+
+use strict;
+use warnings;
+use JSON;
+#use Data::Dumper;
+
+if ( defined($ARGV[0]) and $ARGV[0] eq "config" ) {
+     print "graph_title GPS Estimated timestamp error\n";
+     print "graph_vlabel seconds\n";
+     print "graph_category Sensors\n";
+     print "err.label Estimated timestamp error\n";
+} else {
+
+my $gps = `timeout -k 10 8 gpspipe -n10 -w|grep TPV|head -n1`;
+
+$gps=decode_json($gps);
+
+#print Dumper($gps);
+
+$gps=$gps->{'ept'};
+
+
+
+	print "err.value $gps\n";
+
+}
