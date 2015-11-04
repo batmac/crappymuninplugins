@@ -1,0 +1,2 @@
+# crappymuninplugins
+crappy munin plugins
