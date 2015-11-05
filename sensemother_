@@ -8,19 +8,6 @@ use Try::Tiny;
 use Switch;
 
 my $datadir = "/root/domotique/sense/last";
-#my %map = (
-#"8WXHPcW4BnTgECtTwggERUaySW3lYDWg"=>	"bleu",
-#"b9x4PQwoiBxbILzP6BOyDa2B9mLjCkuf"=>	"mother2",
-#"cFMQXyMgTq2NSo7xzoA6FdshEuy89rso"=>	"mother",
-#"EwTTqeSps3OEjLiuPCzJBjDyNzsalbYL"=>	"jaune2",
-#"GabevLs6UDLEw088zE9VNGQU4VBbIvoW"=>	"jaune",
-#"gkc4xDo71NRRJx3Ii1LiGc8sylOjiijr"=>	"vert",
-#"n36Agrvtag9dvIJtsfpCfQ47TzbU5Q74"=>	"orange2",
-#"pyMNpv2HesFpKQZdFFMhIH5XbAg82Tyq"=>	"vert2",
-#"RBeSi0P7HqoKgizZkRKWrd1msYJ9WgwZ"=>	"bleu2",
-#"Tkwj77D08YWHYr8HqTRr8uTIbvjpvdrT"=>	"orange",
-#"z7zeNSFKd03J6rUGXlzMvno1MglH3bRa"=>	"jesaipa",
-#);
 
 my %map = qw(
 8WXHPcW4BnTgECtTwggERUaySW3lYDWg	bleu
@@ -46,19 +33,24 @@ die "type not defined" if !defined($type);
 opendir(DIR, $datadir) or die "Unable to open $datadir:$!\n";
 my @files = readdir(DIR) or die "Unable to read $datadir:$!\n";
 closedir(DIR);
+my %sig;
 
-foreach my $file (grep {-f "$datadir/$_" && -M "$datadir/$_"< 1 } @files) {
+foreach my $file (grep {-f "$datadir/$_" } @files) {
+#foreach my $file (grep {-f "$datadir/$_" && -M "$datadir/$_"< 1 } @files) {
 	#print($file." $datadir/$file\n");
+	next if ((time()-((stat("$datadir/$file"))[9]))>3600 and !defined($ARGV[0]));
+
 	my $d;
 	try{
 		$d = decode_json slurp("$datadir/$file");
 	} catch {
 		die "$!$@";
 	};
-	next if ($d->{type} ne $type);
 	#print(Dumper(\$d)."\n\n");
-	switch($d->{type}) {
+	next unless (defined($d->{nodeUid}));
+	switch($type) {
 		case "battery" {
+			next if (!exists($d->{type}) or $d->{type} ne $type);
 			#print Dumper(\$d);
 			if ( defined($ARGV[0]) and $ARGV[0] eq "config" ) {
 				my $label = $d->{nodeUid};
@@ -73,6 +65,7 @@ foreach my $file (grep {-f "$datadir/$_" && -M "$datadir/$_"< 1 } @files) {
 			}
 		} 
 		case "temperature" {
+			next if (!exists($d->{type}) or $d->{type} ne $type);
 			#print Dumper(\$d);
 			if ( defined($ARGV[0]) and $ARGV[0] eq "config" ) {
 				my $label = $d->{nodeUid};
@@ -86,6 +79,22 @@ foreach my $file (grep {-f "$datadir/$_" && -M "$datadir/$_"< 1 } @files) {
 				print "$d->{nodeUid}.value ".($d->{payload}/100)."\n";
 			}
 		} 
+		case "signal" {
+			#print Dumper(\$d);
+			next unless (defined($d->{signal}));
+			if ( defined($ARGV[0]) and $ARGV[0] eq "config" ) {
+				my $label = $d->{nodeUid};
+				$label = $map{$d->{nodeUid}} if (exists($map{$d->{nodeUid}}));
+				
+				print "graph_title sense mother $type\n";
+				print "graph_vlabel $type\n";
+				print "graph_category Sensors\n";
+				print "$d->{nodeUid}.label $label\n";
+			} else {
+				#print "$d->{nodeUid}.value ".$sig{$d->{nodeUid}}."\n";
+				$sig{$d->{nodeUid}}=max($sig{$d->{nodeUid}}, $d->{signal});
+			}
+		}
 		else {
 			#print STDERR "unknown type ".$d->{type}."\n";
 			next;
@@ -93,6 +102,10 @@ foreach my $file (grep {-f "$datadir/$_" && -M "$datadir/$_"< 1 } @files) {
 	}
 }
 
+if ($type eq "signal") {
+	#print "$d->{nodeUid}.value ".$sig{$d->{nodeUid}}."\n";
+
+}
 #print Dumper($gps);
 
 sub slurp {
