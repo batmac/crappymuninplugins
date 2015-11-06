@@ -38,7 +38,7 @@ my %sig;
 foreach my $file (grep {-f "$datadir/$_" } @files) {
 #foreach my $file (grep {-f "$datadir/$_" && -M "$datadir/$_"< 1 } @files) {
 	#print($file." $datadir/$file\n");
-	next if ((time()-((stat("$datadir/$file"))[9]))>3600 and !defined($ARGV[0]));
+	next if ((time()-((stat("$datadir/$file"))[9]))>(3600/4+1) and !defined($ARGV[0]));
 
 	my $d;
 	try{
